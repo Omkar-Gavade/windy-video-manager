@@ -1,8 +1,11 @@
 import { useState } from "react";
 import { MapPin, Building2, Calendar, RefreshCw } from "lucide-react";
 import Card from "./ui/Card";
+import { useVideoOptions } from "../hooks/useVideoOptions";
 
-// Selection options, shared with the upload form.
+// Default option lists used ONLY by the Inputs module (which has fixed sites).
+// The Videos filter/upload below discover their States/Plants dynamically from
+// S3 and never use these arrays.
 export const STATES = ["Madhya Pradesh", "Maharashtra", "Gujarat", "Rajasthan"];
 export const PLANTS = ["SIRMOUR", "SATNA", "REWA", "KATNI"];
 
@@ -32,7 +35,7 @@ function Field({ label, icon: Icon, children }) {
 // Premium horizontal filter card: State, Plant, a date field, Load button.
 // Holds its own selection; fetching only happens when the button is clicked,
 // which emits the current filters to the parent (never while typing).
-// `dateLabel`/`buttonLabel` let this be reused as-is for the Documents page
+// `dateLabel`/`buttonLabel` keep this reusable across pages
 // (defaults preserve the exact video-page behaviour: "Recording Date" /
 // "Load Videos").
 export default function FilterBar({
@@ -41,11 +44,15 @@ export default function FilterBar({
   dateLabel = "Recording Date",
   buttonLabel = "Load Videos",
 }) {
-  const [state, setState] = useState(STATES[0]);
-  const [plant, setPlant] = useState(PLANTS[0]);
+  // States/Plants come dynamically from S3 — no hardcoded values.
+  const { states, plants, state, plant, setState, setPlant, loadingStates, loadingPlants } =
+    useVideoOptions();
   const [recordingDate, setRecordingDate] = useState(today);
 
   const handleLoad = () => onLoad({ state, plant, recordingDate });
+
+  const noStates = !loadingStates && states.length === 0;
+  const noPlants = !loadingPlants && plants.length === 0;
 
   return (
     <Card className="p-4 sm:p-5">
@@ -55,12 +62,17 @@ export default function FilterBar({
             className={`${controlClasses} appearance-none`}
             value={state}
             onChange={(event) => setState(event.target.value)}
+            disabled={loadingStates || noStates}
           >
-            {STATES.map((option) => (
-              <option key={option} value={option}>
-                {option}
-              </option>
-            ))}
+            {loadingStates ? (
+              <option value="">Loading…</option>
+            ) : noStates ? (
+              <option value="">No states found</option>
+            ) : (
+              states.map((option) => (
+                <option key={option} value={option}>{option}</option>
+              ))
+            )}
           </select>
         </Field>
 
@@ -69,12 +81,17 @@ export default function FilterBar({
             className={`${controlClasses} appearance-none`}
             value={plant}
             onChange={(event) => setPlant(event.target.value)}
+            disabled={loadingPlants || noPlants}
           >
-            {PLANTS.map((option) => (
-              <option key={option} value={option}>
-                {option}
-              </option>
-            ))}
+            {loadingPlants ? (
+              <option value="">Loading…</option>
+            ) : noPlants ? (
+              <option value="">No plants found</option>
+            ) : (
+              plants.map((option) => (
+                <option key={option} value={option}>{option}</option>
+              ))
+            )}
           </select>
         </Field>
 

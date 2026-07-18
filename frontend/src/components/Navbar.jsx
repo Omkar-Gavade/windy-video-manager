@@ -8,7 +8,7 @@ const navLinkClasses = ({ isActive }) =>
     isActive ? "bg-primary/10 text-primary" : "text-muted hover:text-text",
   ].join(" ");
 
-// Top navigation: brand mark + application title + Videos/Documents links.
+// Top navigation: brand mark + application title + Videos/Inputs links.
 export default function Navbar() {
   return (
     <header className="sticky top-0 z-40 border-b border-border bg-card/80 backdrop-blur">
@@ -26,8 +26,8 @@ export default function Navbar() {
             <NavLink to="/" end className={navLinkClasses}>
               Videos
             </NavLink>
-            <NavLink to="/documents" className={navLinkClasses}>
-              Documents
+            <NavLink to="/inputs" className={navLinkClasses}>
+              Inputs
             </NavLink>
           </nav>
         </div>

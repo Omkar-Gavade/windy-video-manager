@@ -1,37 +1,25 @@
 import { useCallback, useEffect, useState } from "react";
 import {
-  listDocuments,
-  uploadDocument,
+  listInputs,
+  uploadInput,
   getPreviewUrl,
   getDownloadUrl,
-} from "../services/documentApi";
+} from "../services/inputApi";
 
-// Client-side guardrail mirroring the backend's max upload size.
 const MAX_UPLOAD_MB = Number(import.meta.env.VITE_MAX_UPLOAD_MB) || 200;
 
-// Allowed document extensions (mirrors the backend allowlist) — used only for
-// a friendly client-side check; the backend remains authoritative.
-const ALLOWED_EXTENSIONS = [".pdf", ".doc", ".docx", ".xls", ".xlsx", ".csv", ".txt"];
-
-function hasAllowedExtension(filename) {
-  const lower = filename.toLowerCase();
-  return ALLOWED_EXTENSIONS.some((ext) => lower.endsWith(ext));
-}
-
-// Encapsulates the library's data lifecycle: fetching, loading, and errors.
-// Mirrors useVideos. Returns { documents, loading, error, refetch }.
-export function useDocuments() {
-  const [documents, setDocuments] = useState([]);
+// Library data lifecycle: fetch, loading, error, filtered refetch.
+export function useInputs() {
+  const [inputs, setInputs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  const fetchDocuments = useCallback((filters, signal) => {
+  const fetchInputs = useCallback((filters, signal) => {
     setLoading(true);
     setError(null);
-
-    return listDocuments(filters, signal)
+    return listInputs(filters, signal)
       .then((data) => {
-        setDocuments(data || []);
+        setInputs(data || []);
         setLoading(false);
       })
       .catch((err) => {
@@ -43,18 +31,17 @@ export function useDocuments() {
 
   useEffect(() => {
     const controller = new AbortController();
-    fetchDocuments({}, controller.signal);
+    fetchInputs({}, controller.signal);
     return () => controller.abort();
-  }, [fetchDocuments]);
+  }, [fetchInputs]);
 
-  const refetch = useCallback((filters = {}) => fetchDocuments(filters), [fetchDocuments]);
+  const refetch = useCallback((filters = {}) => fetchInputs(filters), [fetchInputs]);
 
-  return { documents, loading, error, refetch };
+  return { inputs, loading, error, refetch };
 }
 
-// Manages a single upload's lifecycle: validation, progress, success, error.
-// Mirrors useUpload. `onSuccess` is invoked after a successful upload.
-export function useDocumentUpload(onSuccess) {
+// Single upload lifecycle: validation, progress, success, error.
+export function useInputUpload(onSuccess) {
   const [uploading, setUploading] = useState(false);
   const [progress, setProgress] = useState(0);
   const [error, setError] = useState(null);
@@ -63,12 +50,6 @@ export function useDocumentUpload(onSuccess) {
   const upload = useCallback(
     (file, metadata) => {
       if (!file) return;
-
-      if (!hasAllowedExtension(file.name)) {
-        setError("Unsupported file type. Allowed: PDF, DOC, DOCX, XLS, XLSX, CSV, TXT.");
-        setUploaded(null);
-        return;
-      }
       if (file.size > MAX_UPLOAD_MB * 1024 * 1024) {
         setError(`File exceeds the ${MAX_UPLOAD_MB} MB limit.`);
         setUploaded(null);
@@ -80,10 +61,8 @@ export function useDocumentUpload(onSuccess) {
       setUploading(true);
       setProgress(0);
 
-      uploadDocument(file, metadata, (event) => {
-        if (event.total) {
-          setProgress(Math.round((event.loaded / event.total) * 100));
-        }
+      uploadInput(file, metadata, (event) => {
+        if (event.total) setProgress(Math.round((event.loaded / event.total) * 100));
       })
         .then((result) => {
           setProgress(100);
@@ -102,7 +81,6 @@ export function useDocumentUpload(onSuccess) {
   return { upload, uploading, progress, error, uploaded };
 }
 
-// Trigger a browser download for a presigned URL.
 function triggerDownload(url) {
   const anchor = document.createElement("a");
   anchor.href = url;
@@ -112,47 +90,43 @@ function triggerDownload(url) {
   anchor.remove();
 }
 
-// Encapsulates the preview (modal) and download side effects for a document.
-// Mirrors useVideoActions.
-export function useDocumentActions() {
-  const [activeDocument, setActiveDocument] = useState(null);
+// Preview (modal) + download side effects.
+export function useInputActions() {
+  const [activeInput, setActiveInput] = useState(null);
   const [previewUrl, setPreviewUrl] = useState(null);
   const [previewLoading, setPreviewLoading] = useState(false);
   const [previewError, setPreviewError] = useState(null);
-
   const [downloadingKey, setDownloadingKey] = useState(null);
   const [downloadError, setDownloadError] = useState(null);
 
-  const openPreview = useCallback((doc) => {
-    setActiveDocument(doc);
+  const openPreview = useCallback((item) => {
+    setActiveInput(item);
     setPreviewUrl(null);
     setPreviewError(null);
     setPreviewLoading(true);
-
-    getPreviewUrl(doc.key)
+    getPreviewUrl(item.key)
       .then((data) => setPreviewUrl(data.url))
       .catch((err) => setPreviewError(err.message))
       .finally(() => setPreviewLoading(false));
   }, []);
 
   const closePreview = useCallback(() => {
-    setActiveDocument(null);
+    setActiveInput(null);
     setPreviewUrl(null);
     setPreviewError(null);
   }, []);
 
-  const download = useCallback((doc) => {
+  const download = useCallback((item) => {
     setDownloadError(null);
-    setDownloadingKey(doc.key);
-
-    getDownloadUrl(doc.key)
+    setDownloadingKey(item.key);
+    getDownloadUrl(item.key)
       .then((data) => triggerDownload(data.url))
       .catch((err) => setDownloadError(err.message))
       .finally(() => setDownloadingKey(null));
   }, []);
 
   return {
-    activeDocument,
+    activeInput,
     previewUrl,
     previewLoading,
     previewError,

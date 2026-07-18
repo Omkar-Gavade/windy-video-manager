@@ -55,6 +55,23 @@ def object_exists(key: str) -> bool:
         raise
 
 
+def head_object(key: str) -> dict[str, Any] | None:
+    """Return the HeadObject response for ``key``, or ``None`` if it is missing.
+
+    Used to retrieve user metadata (e.g. the captured input time) that
+    ``list_objects_v2`` does not return.
+    """
+    settings = get_settings()
+    client = get_s3_client()
+    try:
+        return client.head_object(Bucket=settings.s3_bucket, Key=key)
+    except ClientError as exc:
+        code = exc.response.get("Error", {}).get("Code")
+        if code in {"404", "NoSuchKey", "NotFound"}:
+            return None
+        raise
+
+
 def generate_presigned_get_url(key: str, expiry: int, disposition: str) -> str:
     """Create a short-lived presigned GET URL for ``key``.
 
@@ -74,20 +91,80 @@ def generate_presigned_get_url(key: str, expiry: int, disposition: str) -> str:
     )
 
 
-def upload_fileobj(fileobj: Any, key: str, content_type: str) -> None:
+def upload_fileobj(
+    fileobj: Any,
+    key: str,
+    content_type: str,
+    metadata: dict[str, str] | None = None,
+) -> None:
     """Stream a file-like object to the configured bucket under ``key``.
 
     ``ContentType`` is set so S3 serves the object with the correct type when
-    it is later streamed to an HTML5 player via a presigned URL.
+    it is later streamed to an HTML5 player via a presigned URL. Optional
+    ``metadata`` is stored as S3 user metadata (``x-amz-meta-*``) and read back
+    via :func:`head_object`.
     """
     settings = get_settings()
     client = get_s3_client()
-    client.upload_fileobj(
-        fileobj,
-        settings.s3_bucket,
-        key,
-        ExtraArgs={"ContentType": content_type},
-    )
+    extra_args: dict[str, Any] = {"ContentType": content_type}
+    if metadata:
+        extra_args["Metadata"] = metadata
+    client.upload_fileobj(fileobj, settings.s3_bucket, key, ExtraArgs=extra_args)
+
+
+def put_object(key: str, body: bytes, content_type: str) -> None:
+    """Write raw bytes to ``key`` (used for the small metadata JSON sidecar)."""
+    settings = get_settings()
+    client = get_s3_client()
+    client.put_object(Bucket=settings.s3_bucket, Key=key, Body=body, ContentType=content_type)
+
+
+def get_object_text(key: str) -> str | None:
+    """Return the UTF-8 body of ``key``, or ``None`` if it does not exist."""
+    settings = get_settings()
+    client = get_s3_client()
+    try:
+        response = client.get_object(Bucket=settings.s3_bucket, Key=key)
+        return response["Body"].read().decode("utf-8")
+    except ClientError as exc:
+        code = exc.response.get("Error", {}).get("Code")
+        if code in {"404", "NoSuchKey", "NotFound"}:
+            return None
+        raise
+
+
+def delete_object(key: str) -> None:
+    """Delete ``key`` (best-effort rollback for orphaned uploads)."""
+    settings = get_settings()
+    client = get_s3_client()
+    client.delete_object(Bucket=settings.s3_bucket, Key=key)
+
+
+def list_common_prefixes(prefix: str) -> list[str]:
+    """Return the immediate child "folder" names directly under ``prefix``.
+
+    Uses ``Delimiter='/'`` so S3 returns CommonPrefixes without enumerating
+    every object — used to discover States and Plants dynamically.
+    """
+    settings = get_settings()
+    client = get_s3_client()
+
+    names: list[str] = []
+    continuation_token: str | None = None
+    while True:
+        kwargs: dict[str, Any] = {"Bucket": settings.s3_bucket, "Prefix": prefix, "Delimiter": "/"}
+        if continuation_token:
+            kwargs["ContinuationToken"] = continuation_token
+        response = client.list_objects_v2(**kwargs)
+        for cp in response.get("CommonPrefixes", []):
+            child = cp["Prefix"][len(prefix):].rstrip("/")
+            if child:
+                names.append(child)
+        if response.get("IsTruncated"):
+            continuation_token = response.get("NextContinuationToken")
+        else:
+            break
+    return names
 
 
 def list_objects(prefix: str) -> list[dict[str, Any]]:

@@ -3,12 +3,18 @@ import { UploadCloud, CheckCircle2, AlertCircle, Loader2 } from "lucide-react";
 import Card from "./ui/Card";
 import Button from "./ui/Button";
 import ProgressBar from "./ui/ProgressBar";
-import { STATES, PLANTS, today } from "./FilterBar";
+import { today } from "./FilterBar";
 import { useUpload } from "../hooks/useUpload";
+import { useVideoOptions } from "../hooks/useVideoOptions";
 
 const fieldClasses =
   "h-10 w-full rounded-lg border border-border bg-white px-3 text-sm text-text " +
   "shadow-sm outline-none transition-colors focus:border-primary/50 focus:ring-2 focus:ring-primary/20";
+
+const nowHHMM = () => {
+  const d = new Date();
+  return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+};
 
 // Labelled metadata field for the upload form.
 function UploadField({ label, children }) {
@@ -20,25 +26,24 @@ function UploadField({ label, children }) {
   );
 }
 
-// Upload surface: state/plant/date metadata fields, then drag-and-drop / browse.
-// The metadata is submitted with the file so the backend can build a structured
-// key. `onUploaded` refreshes the library after a successful upload.
+// Upload surface: state/plant/date/time metadata, then drag-and-drop / browse.
+// States/Plants are discovered dynamically from S3 (no hardcoded values). The
+// metadata is submitted with the file so the backend builds the deterministic
+// key + JSON sidecar. `onUploaded` refreshes the library after success.
 export default function UploadCard({ onUploaded }) {
   const inputRef = useRef(null);
   const [dragging, setDragging] = useState(false);
-  const [meta, setMeta] = useState({
-    state: STATES[0],
-    plant: PLANTS[0],
-    recordingDate: today(),
-  });
+  const { states, plants, state, plant, setState, setPlant, loadingStates, loadingPlants } =
+    useVideoOptions();
+  const [recordingDate, setRecordingDate] = useState(today());
+  const [recordingTime, setRecordingTime] = useState(nowHHMM());
   const { upload, uploading, progress, error, uploaded } = useUpload(onUploaded);
 
-  const updateMeta = (field, value) => setMeta((prev) => ({ ...prev, [field]: value }));
   const openFilePicker = () => inputRef.current?.click();
 
   const handleFiles = (files) => {
     const file = files?.[0];
-    if (file) upload(file, meta);
+    if (file) upload(file, { state, plant, recordingDate, recordingTime });
   };
 
   const onInputChange = (event) => {
@@ -76,34 +81,38 @@ export default function UploadCard({ onUploaded }) {
       />
 
       {/* Upload metadata — submitted with the file to build the structured key. */}
-      <div className="mb-5 grid grid-cols-1 gap-4 sm:grid-cols-3">
+      <div className="mb-5 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <UploadField label="State">
           <select
             className={`${fieldClasses} appearance-none`}
-            value={meta.state}
-            onChange={(event) => updateMeta("state", event.target.value)}
-            disabled={uploading}
+            value={state}
+            onChange={(event) => setState(event.target.value)}
+            disabled={uploading || loadingStates || states.length === 0}
           >
-            {STATES.map((option) => (
-              <option key={option} value={option}>
-                {option}
-              </option>
-            ))}
+            {loadingStates ? (
+              <option value="">Loading…</option>
+            ) : states.length === 0 ? (
+              <option value="">No states found</option>
+            ) : (
+              states.map((o) => <option key={o} value={o}>{o}</option>)
+            )}
           </select>
         </UploadField>
 
         <UploadField label="Plant">
           <select
             className={`${fieldClasses} appearance-none`}
-            value={meta.plant}
-            onChange={(event) => updateMeta("plant", event.target.value)}
-            disabled={uploading}
+            value={plant}
+            onChange={(event) => setPlant(event.target.value)}
+            disabled={uploading || loadingPlants || plants.length === 0}
           >
-            {PLANTS.map((option) => (
-              <option key={option} value={option}>
-                {option}
-              </option>
-            ))}
+            {loadingPlants ? (
+              <option value="">Loading…</option>
+            ) : plants.length === 0 ? (
+              <option value="">No plants found</option>
+            ) : (
+              plants.map((o) => <option key={o} value={o}>{o}</option>)
+            )}
           </select>
         </UploadField>
 
@@ -111,8 +120,18 @@ export default function UploadCard({ onUploaded }) {
           <input
             type="date"
             className={fieldClasses}
-            value={meta.recordingDate}
-            onChange={(event) => updateMeta("recordingDate", event.target.value)}
+            value={recordingDate}
+            onChange={(event) => setRecordingDate(event.target.value)}
+            disabled={uploading}
+          />
+        </UploadField>
+
+        <UploadField label="Recording Time">
+          <input
+            type="time"
+            className={fieldClasses}
+            value={recordingTime}
+            onChange={(event) => setRecordingTime(event.target.value)}
             disabled={uploading}
           />
         </UploadField>

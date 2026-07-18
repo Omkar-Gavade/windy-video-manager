@@ -11,7 +11,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from app.config.settings import get_settings
-from app.routes import documents, videos
+from app.routes import inputs, videos
 from app.utils.responses import AppError, error, success
 
 settings = get_settings()
@@ -31,7 +31,7 @@ app.add_middleware(
 )
 
 app.include_router(videos.router)
-app.include_router(documents.router)
+app.include_router(inputs.router)
 
 
 @app.exception_handler(AppError)

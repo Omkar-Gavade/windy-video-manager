@@ -26,6 +26,7 @@ def test_list_maps_and_sorts_newest_first(monkeypatch):
         _obj("videos/20260714T090000Z_cccc2222dddd_new.mp4", 5 * 1024 * 1024, newer),
     ]
     monkeypatch.setattr(s3_client, "list_objects", lambda prefix: list(fake))
+    monkeypatch.setattr(s3_client, "get_object_text", lambda key: None)  # no sidecar -> key parse
 
     result = video_service.list_videos()
 

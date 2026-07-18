@@ -17,6 +17,7 @@ def _stub_s3(monkeypatch, exists=True):
     """Stub existence + presign, capturing the presign call arguments."""
     calls = []
     monkeypatch.setattr(s3_client, "object_exists", lambda key: exists)
+    monkeypatch.setattr(s3_client, "get_object_text", lambda key: None)  # no sidecar -> key parse
 
     def fake_presign(key, expiry, disposition):
         calls.append({"key": key, "expiry": expiry, "disposition": disposition})

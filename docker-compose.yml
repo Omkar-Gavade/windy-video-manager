@@ -1,0 +1,50 @@
+services:
+  windy-backend:
+    build: ./backend
+    image: windy-backend
+    container_name: windy-backend
+    restart: unless-stopped
+    # tini as PID 1: forwards SIGTERM to uvicorn (graceful shutdown) and reaps
+    # any zombie worker processes.
+    init: true
+    ports:
+      - "8000:8000"
+    # AWS credentials + bucket/region/prefix come from backend/.env.
+    # Copy backend/.env.example -> backend/.env and fill it in.
+    env_file:
+      - ./backend/.env
+    # Uses the HEALTHCHECK baked into the backend image (hits /health).
+    networks:
+      - windy
+
+  windy-frontend:
+    build:
+      context: ./frontend
+      args:
+        # Same-origin: the app calls /api/... and nginx proxies to the backend.
+        VITE_API_BASE_URL: /
+    image: windy-frontend
+    container_name: windy-frontend
+    restart: unless-stopped
+    init: true
+    ports:
+      - "80:80"
+    # Only start serving once the backend is healthy.
+    depends_on:
+      windy-backend:
+        condition: service_healthy
+    # nginx:alpine ships busybox wget — confirm the SPA is being served.
+    # Use 127.0.0.1 (IPv4): nginx listens on IPv4 only, while "localhost"
+    # resolves to IPv6 ::1 inside the container and would be refused.
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--output-document=/dev/null", "http://127.0.0.1:80/"]
+      interval: 30s
+      timeout: 5s
+      start_period: 5s
+      retries: 3
+    networks:
+      - windy
+
+networks:
+  windy:
+    driver: bridge

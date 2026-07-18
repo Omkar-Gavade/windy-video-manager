@@ -5,7 +5,7 @@ import VideoLibrary from "../components/VideoLibrary";
 import { useVideos } from "../hooks/useVideos";
 
 // Video page (route "/"). Unchanged behaviour — only relocated out of App.jsx
-// so App can route between this and the Documents page.
+// so App can route between this and the Inputs page.
 // The filter bar drives fetching (on Load Videos); the upload card carries its
 // own metadata; the library renders whatever the backend returns.
 export default function VideoDashboard() {

@@ -45,28 +45,66 @@ def test_extract_metadata_legacy_is_none():
     assert meta["filename"] == "old.mp4"
 
 
-def test_upload_with_metadata_builds_structured_key(monkeypatch):
+def test_upload_with_metadata_builds_new_key_and_sidecar(monkeypatch):
     captured = {}
     monkeypatch.setattr(
-        s3_client,
-        "upload_fileobj",
-        lambda fileobj, key, content_type: captured.update(key=key),
+        s3_client, "upload_fileobj",
+        lambda fileobj, key, content_type: captured.update(video_key=key),
+    )
+    monkeypatch.setattr(
+        s3_client, "put_object",
+        lambda key, body, content_type: captured.update(json_key=key, json_body=body),
     )
 
     result = video_service.upload_video(
-        "SIRMOUR_satellite_2026-07-14_clean.mp4",
+        "SIRMOUR_satellite_2026-07-14_18_30_clean.mp4",
         "video/mp4",
         io.BytesIO(MP4_BYTES),
         state="Madhya Pradesh",
         plant="SIRMOUR",
         recording_date="2026-07-14",
+        recording_time="18:30",
     )
 
-    assert captured["key"].startswith("videos/MadhyaPradesh/SIRMOUR/2026-07-14/")
+    # New deterministic naming + JSON sidecar beside it.
+    assert captured["video_key"] == "videos/MadhyaPradesh/SIRMOUR/2026-07-14/sirmour_260714_18_30.mp4"
+    assert captured["json_key"] == "videos/MadhyaPradesh/SIRMOUR/2026-07-14/sirmour_260714_18_30.json"
     assert result["state"] == "MadhyaPradesh"
     assert result["plant"] == "SIRMOUR"
     assert result["recording_date"] == "2026-07-14"
-    assert result["filename"] == "SIRMOUR_satellite_2026-07-14_clean.mp4"
+    assert result["recording_time"] == "18:30:00"
+    assert result["filename"] == "sirmour_260714_18_30.mp4"
+
+    import json
+    doc = json.loads(captured["json_body"].decode())
+    assert doc["version"] == 1
+    assert doc["filename"] == "sirmour_260714_18_30.mp4"
+    assert doc["s3_key"] == captured["video_key"]
+
+
+def test_upload_rolls_back_mp4_when_json_fails(monkeypatch):
+    from botocore.exceptions import ClientError
+
+    deleted = {}
+    monkeypatch.setattr(s3_client, "upload_fileobj", lambda f, k, c: None)
+
+    def boom(key, body, content_type):
+        raise ClientError({"Error": {"Code": "AccessDenied"}}, "PutObject")
+
+    monkeypatch.setattr(s3_client, "put_object", boom)
+    monkeypatch.setattr(s3_client, "delete_object", lambda key: deleted.update(key=key))
+
+    import pytest
+    from app.utils.responses import AppError
+
+    with pytest.raises(AppError) as exc:
+        video_service.upload_video(
+            "SIRMOUR_2026-07-14_18_30.mp4", "video/mp4", io.BytesIO(MP4_BYTES),
+            state="MP", plant="SIRMOUR", recording_date="2026-07-14", recording_time="18:30",
+        )
+    assert exc.value.status_code == 502
+    # The orphaned MP4 was deleted.
+    assert deleted["key"] == "videos/MP/SIRMOUR/2026-07-14/sirmour_260714_18_30.mp4"
 
 
 def test_upload_without_metadata_uses_flat_key(monkeypatch):
@@ -95,6 +133,7 @@ def test_list_returns_metadata_for_both_layouts(monkeypatch):
         {"Key": "videos/20260101T000000Z_ffff0000_legacy.mp4", "Size": 2048, "LastModified": when},
     ]
     monkeypatch.setattr(s3_client, "list_objects", lambda prefix: list(fake))
+    monkeypatch.setattr(s3_client, "get_object_text", lambda key: None)  # no sidecar
 
     result = video_service.list_videos()
     structured = next(v for v in result if v["key"].endswith("_a.mp4"))

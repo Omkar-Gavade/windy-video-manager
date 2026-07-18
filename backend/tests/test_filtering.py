@@ -30,6 +30,7 @@ def _stub(monkeypatch):
         return list(FAKE)
 
     monkeypatch.setattr(s3_client, "list_objects", fake)
+    monkeypatch.setattr(s3_client, "get_object_text", lambda key: None)  # no sidecar -> key parse
     return calls
 
 

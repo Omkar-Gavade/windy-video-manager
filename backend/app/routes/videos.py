@@ -27,20 +27,35 @@ def list_videos(
     return success(video_service.list_videos(state, plant, recording_date))
 
 
+@router.get("/states")
+def list_states() -> dict:
+    """Return the States present in the bucket (dynamic, from S3)."""
+    return success(video_service.list_states())
+
+
+@router.get("/plants")
+def list_plants(state: str = Query(..., min_length=1)) -> dict:
+    """Return the Plants present for a given State (dynamic, from S3)."""
+    return success(video_service.list_plants(state))
+
+
 @router.post("/upload")
 def upload_video(
     file: UploadFile = File(...),
     state: str | None = Form(None),
     plant: str | None = Form(None),
     recording_date: str | None = Form(None),
+    recording_time: str | None = Form(None),
 ) -> dict:
     """Validate and upload a single video to S3.
 
-    Optional ``state`` / ``plant`` / ``recording_date`` organize the object
-    under a structured key; omitting them stores it in the flat legacy layout.
+    With ``state`` / ``plant`` / ``recording_date`` the object is stored under
+    the structured key ``<State>/<Plant>/<Date>/<plant>_YYMMDD_HH_MM.mp4`` with
+    a metadata JSON sidecar; without them it uses the flat legacy layout.
     """
     result = video_service.upload_video(
-        file.filename, file.content_type, file.file, state, plant, recording_date
+        file.filename, file.content_type, file.file,
+        state, plant, recording_date, recording_time,
     )
     return success(result)
 

@@ -54,6 +54,7 @@ def test_list_videos_returns_recording_time(monkeypatch):
         {"Key": "videos/20260101T000000Z_ff_legacy.mp4", "Size": 512, "LastModified": when},
     ]
     monkeypatch.setattr(s3_client, "list_objects", lambda prefix: list(fake))
+    monkeypatch.setattr(s3_client, "get_object_text", lambda key: None)  # no sidecar -> key parse
 
     result = video_service.list_videos()
     structured = next(v for v in result if "SIRMOUR" in v["key"])
@@ -63,10 +64,11 @@ def test_list_videos_returns_recording_time(monkeypatch):
     assert legacy["recording_time"] is None
 
 
-def test_upload_video_returns_recording_time(monkeypatch):
+def test_upload_video_returns_recording_time_and_new_name(monkeypatch):
     import io
 
     monkeypatch.setattr(s3_client, "upload_fileobj", lambda fileobj, key, content_type: None)
+    monkeypatch.setattr(s3_client, "put_object", lambda key, body, content_type: None)
     mp4_bytes = b"\x00\x00\x00\x18ftypmp42" + b"\x00" * 64
 
     result = video_service.upload_video(
@@ -77,4 +79,8 @@ def test_upload_video_returns_recording_time(monkeypatch):
         plant="SIRMOUR",
         recording_date="2026-07-15",
     )
+    # Recording time is parsed from the Windy filename when not supplied.
     assert result["recording_time"] == "09:31:55"
+    # New deterministic naming: <plant>_YYMMDD_HH_MM.mp4
+    assert result["filename"] == "sirmour_260715_09_31.mp4"
+    assert result["key"] == "videos/MadhyaPradesh/SIRMOUR/2026-07-15/sirmour_260715_09_31.mp4"

@@ -26,11 +26,22 @@ export function listVideos(filters = {}, signal) {
 export function uploadVideo(file, metadata, onUploadProgress) {
   const form = new FormData();
   form.append("file", file);
-  // Optional Windy metadata — organizes the object under a structured key.
+  // Metadata — organizes the object under a structured key + JSON sidecar.
   if (metadata?.state) form.append("state", metadata.state);
   if (metadata?.plant) form.append("plant", metadata.plant);
   if (metadata?.recordingDate) form.append("recording_date", metadata.recordingDate);
+  if (metadata?.recordingTime) form.append("recording_time", metadata.recordingTime);
   return apiClient.post("/api/videos/upload", form, { onUploadProgress });
+}
+
+/** Dynamic list of States present in the bucket. */
+export function getStates(signal) {
+  return apiClient.get("/api/videos/states", { signal });
+}
+
+/** Dynamic list of Plants for a given State. */
+export function getPlants(state, signal) {
+  return apiClient.get("/api/videos/plants", { params: { state }, signal });
 }
 
 /**
