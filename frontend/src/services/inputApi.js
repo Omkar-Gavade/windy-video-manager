@@ -19,26 +19,6 @@ export function listInputs(filters = {}, signal) {
   return apiClient.get("/api/inputs", { params, signal });
 }
 
-/**
- * Upload a single input asset.
- * @param {File} file
- * @param {{state, plant, inputDate?, inputTime, category, wpType?, subCategory?}} metadata
- * @param {(event: ProgressEvent) => void} [onUploadProgress]
- * @returns {Promise<Object>}
- */
-export function uploadInput(file, metadata, onUploadProgress) {
-  const form = new FormData();
-  form.append("file", file);
-  if (metadata?.state) form.append("state", metadata.state);
-  if (metadata?.plant) form.append("plant", metadata.plant);
-  if (metadata?.inputDate) form.append("input_date", metadata.inputDate);
-  if (metadata?.inputTime) form.append("input_time", metadata.inputTime);
-  if (metadata?.category) form.append("category", metadata.category);
-  if (metadata?.wpType) form.append("wp_type", metadata.wpType);
-  if (metadata?.subCategory) form.append("sub_category", metadata.subCategory);
-  return apiClient.post("/api/inputs/upload", form, { onUploadProgress });
-}
-
 /** Dynamic list of States present under the inputs prefix. */
 export function getStates(signal) {
   return apiClient.get("/api/inputs/states", { signal });

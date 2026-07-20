@@ -1,17 +1,16 @@
 import { useCallback, useState } from "react";
 import Container from "../components/ui/Container";
 import FilterBar from "../components/FilterBar";
-import UploadCard from "../components/UploadCard";
 import VideoLibrary from "../components/VideoLibrary";
 import { useVideos } from "../hooks/useVideos";
 
 // Video page (route "/"). Search-first: nothing is fetched until the user
 // picks State + Plant + Recording Date and presses Load.
-// Layout order: filters -> results -> upload.
+// Layout order: filters -> results.
 export default function VideoDashboard() {
   const { videos, loading, error, loaded, refetch } = useVideos();
-  // Remember the last search so refreshes (after upload / retry) reuse it
-  // instead of falling back to an unfiltered fetch.
+  // Remember the last search so Retry reuses it instead of falling back to an
+  // unfiltered fetch.
   const [filters, setFilters] = useState(null);
 
   const handleLoad = useCallback(
@@ -22,7 +21,6 @@ export default function VideoDashboard() {
     [refetch]
   );
 
-  // Only refresh when a search has already been run.
   const refresh = useCallback(() => {
     if (filters) refetch(filters);
   }, [filters, refetch]);
@@ -37,7 +35,6 @@ export default function VideoDashboard() {
         loaded={loaded}
         onRetry={refresh}
       />
-      <UploadCard onUploaded={refresh} />
     </Container>
   );
 }

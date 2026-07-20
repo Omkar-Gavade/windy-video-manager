@@ -3,12 +3,8 @@ import { MapPin, Building2, Calendar, RefreshCw } from "lucide-react";
 import Card from "./ui/Card";
 import { useVideoOptions } from "../hooks/useVideoOptions";
 
-// Default option lists used ONLY by the Inputs module (which has fixed sites).
-// The Videos filter/upload below discover their States/Plants dynamically from
-// S3 and never use these arrays.
-export const STATES = ["Madhya Pradesh", "Maharashtra", "Gujarat", "Rajasthan"];
-export const PLANTS = ["SIRMOUR", "SATNA", "REWA", "KATNI"];
-
+// Today as YYYY-MM-DD — the default value for the date filters (shared with
+// the Inputs filter bar).
 export const today = () => new Date().toISOString().slice(0, 10);
 
 const controlClasses =

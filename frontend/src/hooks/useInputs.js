@@ -1,12 +1,5 @@
 import { useCallback, useState } from "react";
-import {
-  listInputs,
-  uploadInput,
-  getPreviewUrl,
-  getDownloadUrl,
-} from "../services/inputApi";
-
-const MAX_UPLOAD_MB = Number(import.meta.env.VITE_MAX_UPLOAD_MB) || 200;
+import { listInputs, getPreviewUrl, getDownloadUrl } from "../services/inputApi";
 
 // Library data lifecycle: fetch, loading, error, filtered refetch.
 // Nothing is fetched on mount — the list API runs only when `refetch` is called
@@ -36,47 +29,6 @@ export function useInputs() {
   }, []);
 
   return { inputs, loading, error, loaded, refetch };
-}
-
-// Single upload lifecycle: validation, progress, success, error.
-export function useInputUpload(onSuccess) {
-  const [uploading, setUploading] = useState(false);
-  const [progress, setProgress] = useState(0);
-  const [error, setError] = useState(null);
-  const [uploaded, setUploaded] = useState(null);
-
-  const upload = useCallback(
-    (file, metadata) => {
-      if (!file) return;
-      if (file.size > MAX_UPLOAD_MB * 1024 * 1024) {
-        setError(`File exceeds the ${MAX_UPLOAD_MB} MB limit.`);
-        setUploaded(null);
-        return;
-      }
-
-      setError(null);
-      setUploaded(null);
-      setUploading(true);
-      setProgress(0);
-
-      uploadInput(file, metadata, (event) => {
-        if (event.total) setProgress(Math.round((event.loaded / event.total) * 100));
-      })
-        .then((result) => {
-          setProgress(100);
-          setUploading(false);
-          setUploaded(result?.filename || file.name);
-          onSuccess?.();
-        })
-        .catch((err) => {
-          setUploading(false);
-          setError(err.message);
-        });
-    },
-    [onSuccess]
-  );
-
-  return { upload, uploading, progress, error, uploaded };
 }
 
 function triggerDownload(url) {
