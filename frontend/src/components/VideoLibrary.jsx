@@ -56,7 +56,7 @@ function groupVideos(videos) {
 
 // Library section. Data is supplied by the parent; preview / download side
 // effects are owned by useVideoActions. Groups recordings for presentation.
-export default function VideoLibrary({ videos, loading, error, onRetry }) {
+export default function VideoLibrary({ videos, loading, error, loaded, onRetry }) {
   const {
     activeVideo,
     previewUrl,
@@ -83,7 +83,7 @@ export default function VideoLibrary({ videos, loading, error, onRetry }) {
             Recordings grouped by plant and day.
           </p>
         </div>
-        {!loading && !error ? (
+        {loaded && !loading && !error ? (
           <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1 text-xs font-medium text-muted">
             {videos.length} {videos.length === 1 ? "video" : "videos"}
           </span>
@@ -110,6 +110,7 @@ export default function VideoLibrary({ videos, loading, error, onRetry }) {
       <LibraryContent
         loading={loading}
         error={error}
+        loaded={loaded}
         groups={groups}
         onRetry={onRetry}
         onPreview={openPreview}
@@ -134,12 +135,28 @@ export default function VideoLibrary({ videos, loading, error, onRetry }) {
 function LibraryContent({
   loading,
   error,
+  loaded,
   groups,
   onRetry,
   onPreview,
   onDownload,
   downloadingKey,
 }) {
+  // Nothing searched yet — no list API has run.
+  if (!loaded && !loading && !error) {
+    return (
+      <Card className="flex flex-col items-center px-6 py-12 text-center">
+        <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+          <FolderOpen size={22} aria-hidden="true" />
+        </span>
+        <h3 className="mt-4 text-sm font-semibold text-text">No data loaded yet</h3>
+        <p className="mt-1 max-w-sm text-sm text-muted">
+          Select State, Plant and Recording Date, then click Load.
+        </p>
+      </Card>
+    );
+  }
+
   if (loading) {
     return (
       <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
@@ -173,9 +190,9 @@ function LibraryContent({
         <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10 text-primary">
           <FolderOpen size={22} aria-hidden="true" />
         </span>
-        <h3 className="mt-4 text-sm font-semibold text-text">No videos yet</h3>
+        <h3 className="mt-4 text-sm font-semibold text-text">No videos found</h3>
         <p className="mt-1 max-w-sm text-sm text-muted">
-          Uploaded videos will appear here.
+          No recordings match the selected State, Plant and date.
         </p>
       </Card>
     );

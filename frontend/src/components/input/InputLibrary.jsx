@@ -9,7 +9,7 @@ import { useInputActions } from "../../hooks/useInputs";
 const SKELETON_COUNT = 6;
 
 // Input library: filtered grid + preview/download side effects.
-export default function InputLibrary({ inputs, loading, error, onRetry }) {
+export default function InputLibrary({ inputs, loading, error, loaded, onRetry }) {
   const {
     activeInput, previewUrl, previewLoading, previewError,
     openPreview, closePreview, downloadingKey, downloadError,
@@ -23,7 +23,7 @@ export default function InputLibrary({ inputs, loading, error, onRetry }) {
           <h2 id="inputs-heading" className="text-lg font-semibold text-text">Input Library</h2>
           <p className="mt-0.5 text-sm text-muted">Inputs stored in your S3 bucket.</p>
         </div>
-        {!loading && !error ? (
+        {loaded && !loading && !error ? (
           <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1 text-xs font-medium text-muted">
             <Folder size={13} aria-hidden="true" />
             {inputs.length} {inputs.length === 1 ? "input" : "inputs"}
@@ -46,6 +46,7 @@ export default function InputLibrary({ inputs, loading, error, onRetry }) {
       <Content
         loading={loading}
         error={error}
+        loaded={loaded}
         inputs={inputs}
         onRetry={onRetry}
         onPreview={openPreview}
@@ -67,7 +68,22 @@ export default function InputLibrary({ inputs, loading, error, onRetry }) {
   );
 }
 
-function Content({ loading, error, inputs, onRetry, onPreview, onDownload, downloadingKey }) {
+function Content({ loading, error, loaded, inputs, onRetry, onPreview, onDownload, downloadingKey }) {
+  // Nothing searched yet — no list API has run.
+  if (!loaded && !loading && !error) {
+    return (
+      <Card className="flex flex-col items-center px-6 py-12 text-center">
+        <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+          <FolderOpen size={22} aria-hidden="true" />
+        </span>
+        <h3 className="mt-4 text-sm font-semibold text-text">No data loaded yet</h3>
+        <p className="mt-1 max-w-sm text-sm text-muted">
+          Select State, Plant and Input Date, then click Load.
+        </p>
+      </Card>
+    );
+  }
+
   if (loading) {
     return (
       <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
@@ -95,8 +111,10 @@ function Content({ loading, error, inputs, onRetry, onPreview, onDownload, downl
         <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10 text-primary">
           <FolderOpen size={22} aria-hidden="true" />
         </span>
-        <h3 className="mt-4 text-sm font-semibold text-text">No inputs yet</h3>
-        <p className="mt-1 max-w-sm text-sm text-muted">Uploaded inputs will appear here.</p>
+        <h3 className="mt-4 text-sm font-semibold text-text">No inputs found</h3>
+        <p className="mt-1 max-w-sm text-sm text-muted">
+          No files match the selected State, Plant and date.
+        </p>
       </Card>
     );
   }

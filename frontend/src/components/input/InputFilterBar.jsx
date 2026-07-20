@@ -41,7 +41,10 @@ export default function InputFilterBar({ onLoad, loading = false }) {
   const noStates = !loadingStates && states.length === 0;
   const noPlants = !loadingPlants && plants.length === 0;
 
-  const handleLoad = () =>
+  // Search is mandatory: State, Plant and Input Date must all be chosen.
+  const canLoad = Boolean(state && plant && inputDate);
+  const handleLoad = () => {
+    if (!canLoad) return;
     onLoad({
       state,
       plant,
@@ -49,6 +52,7 @@ export default function InputFilterBar({ onLoad, loading = false }) {
       category: category || undefined,
       wpType: isWP ? wpType || undefined : undefined,
     });
+  };
 
   return (
     <Card className="p-4 sm:p-5">
@@ -114,13 +118,19 @@ export default function InputFilterBar({ onLoad, loading = false }) {
         <button
           type="button"
           onClick={handleLoad}
-          disabled={loading}
+          disabled={loading || !canLoad}
           className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-success px-6 text-sm font-semibold text-white shadow-soft transition-all hover:bg-success/90 focus:outline-none focus-visible:ring-2 focus-visible:ring-success/40 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60 lg:w-auto"
         >
           <RefreshCw size={16} className={loading ? "animate-spin" : ""} aria-hidden="true" />
           Load Inputs
         </button>
       </div>
+
+      {!canLoad ? (
+        <p className="mt-3 text-xs text-muted">
+          Please select State, Plant and Input Date.
+        </p>
+      ) : null}
     </Card>
   );
 }

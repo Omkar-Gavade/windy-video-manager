@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 import {
   listInputs,
   uploadInput,
@@ -9,35 +9,33 @@ import {
 const MAX_UPLOAD_MB = Number(import.meta.env.VITE_MAX_UPLOAD_MB) || 200;
 
 // Library data lifecycle: fetch, loading, error, filtered refetch.
+// Nothing is fetched on mount — the list API runs only when `refetch` is called
+// with explicit filters (the Load button). `loaded` distinguishes "nothing
+// searched yet" from "searched, no results".
 export function useInputs() {
   const [inputs, setInputs] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [loaded, setLoaded] = useState(false);
 
-  const fetchInputs = useCallback((filters, signal) => {
+  const refetch = useCallback((filters = {}) => {
     setLoading(true);
     setError(null);
-    return listInputs(filters, signal)
+    return listInputs(filters)
       .then((data) => {
         setInputs(data || []);
+        setLoaded(true);
         setLoading(false);
       })
       .catch((err) => {
         if (err?.code === "ERR_CANCELED" || err?.name === "CanceledError") return;
         setError(err.message);
+        setLoaded(true);
         setLoading(false);
       });
   }, []);
 
-  useEffect(() => {
-    const controller = new AbortController();
-    fetchInputs({}, controller.signal);
-    return () => controller.abort();
-  }, [fetchInputs]);
-
-  const refetch = useCallback((filters = {}) => fetchInputs(filters), [fetchInputs]);
-
-  return { inputs, loading, error, refetch };
+  return { inputs, loading, error, loaded, refetch };
 }
 
 // Single upload lifecycle: validation, progress, success, error.

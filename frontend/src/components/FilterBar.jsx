@@ -49,10 +49,15 @@ export default function FilterBar({
     useVideoOptions();
   const [recordingDate, setRecordingDate] = useState(today);
 
-  const handleLoad = () => onLoad({ state, plant, recordingDate });
-
   const noStates = !loadingStates && states.length === 0;
   const noPlants = !loadingPlants && plants.length === 0;
+
+  // Search is mandatory: all three fields must be chosen before loading.
+  const canLoad = Boolean(state && plant && recordingDate);
+  const handleLoad = () => {
+    if (!canLoad) return;
+    onLoad({ state, plant, recordingDate });
+  };
 
   return (
     <Card className="p-4 sm:p-5">
@@ -107,7 +112,7 @@ export default function FilterBar({
         <button
           type="button"
           onClick={handleLoad}
-          disabled={loading}
+          disabled={loading || !canLoad}
           className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-success px-6 text-sm font-semibold text-white shadow-soft transition-all hover:bg-success/90 focus:outline-none focus-visible:ring-2 focus-visible:ring-success/40 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60 lg:w-auto"
         >
           <RefreshCw
@@ -118,6 +123,12 @@ export default function FilterBar({
           {buttonLabel}
         </button>
       </div>
+
+      {!canLoad ? (
+        <p className="mt-3 text-xs text-muted">
+          Please select State, Plant and {dateLabel}.
+        </p>
+      ) : null}
     </Card>
   );
 }
